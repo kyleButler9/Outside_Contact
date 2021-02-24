@@ -48,19 +48,19 @@ class NewOrg(tk.Frame,DBI):
         vals = tuple()
         cols = ''
         colVals = ''
-        if self.orgName.index("end") == 0:
+        if self.orgName.index("end") != 0:
             vals+= (self.orgName.get(),)
             cols+='name,'
             colVals+='%s,'
-        if self.orgAddress.index("end") == 0:
+        if self.orgAddress.index("end") != 0:
             vals += (self.orgAddress.get(),)
             cols+='address,'
             colVals+='%s,'
-        if self.orgPhone.index("end") == 0:
+        if self.orgPhone.index("end") != 0:
             vals += (self.orgPhone.get(),)
             cols+='phone,'
             colVals+='%s,'
-        if self.orgEmail.index("end") == 0:
+        if self.orgEmail.index("end") != 0:
             vals += (self.orgEmail.get(),)
             cols+='email,'
             colVals+='%s,'
@@ -139,15 +139,15 @@ class NewContact(tk.Frame,DBI):
         vals = (self.orgName.get(),)
         cols = ''
         colVals = ''
-        if self.contactName.index("end") == 0:
+        if self.contactName.index("end") != 0:
             vals+= (self.contactName.get(),)
             cols+='name,'
             colVals+='%s,'
-        if self.contactPhone.index("end") == 0:
+        if self.contactPhone.index("end") != 0:
             vals += (self.contactPhone.get(),)
             cols+='phone,'
             colVals+='%s,'
-        if self.contactEmail.index("end") == 0:
+        if self.contactEmail.index("end") != 0:
             vals += (self.contactEmail.get(),)
             cols+='email,'
             colVals+='%s,'
