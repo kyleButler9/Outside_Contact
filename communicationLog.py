@@ -6,11 +6,6 @@ import datetime
 import sql
 from config import DBI
 
-class NewComms(tk.Frame,DBI):
-    def __init__(self,parent,*args,**kwargs):
-        self.parent = parent
-        tk.Frame.__init__(self,parent,*args)
-        DBI.__init__(self,ini_section = kwargs['ini_section'])
 class NewOrg(tk.Frame,DBI):
     def __init__(self,parent,*args,**kwargs):
         self.parent = parent
@@ -118,23 +113,25 @@ class NewContact(tk.Frame,DBI):
         self.contactPhone = tk.Entry(parent,fg='black',bg='white',width=30)
         self.contactEmailLabel = tk.Label(parent,text='Email:')
         self.contactEmail = tk.Entry(parent,fg='black',bg='white',width=30)
-
+        self.notesLabel = tk.Label(parent,text='notes:')
+        self.notes = tk.Text(parent,height=4,width=25)
         self.contactNameLabel.grid(row=2,column=0)
         self.contactName.grid(row=2,column=1)
         self.contactPhoneLabel.grid(row=3,column=0)
         self.contactPhone.grid(row=3,column=1)
         self.contactEmailLabel.grid(row=4,column=0)
         self.contactEmail.grid(row=4,column=1)
-
+        self.notesLabel.grid(row=5,column=0)
+        self.notes.grid(row=5,column=1)
         self.insertNewContact = tk.Button(parent,
             text='insert Contact',
             width=15,height=2,
             bg='blue',fg='yellow',)
         self.insertNewContact.bind('<Button-1>',self.insertContact)
-        self.insertNewContact.grid(row=5,column=1)
+        self.insertNewContact.grid(row=6,column=1)
         self.flag = tk.StringVar(parent)
         self.err = tk.Label(parent,textvariable=self.flag)
-        self.err.grid(row=5,column=0)
+        self.err.grid(row=6,column=0)
     def insertContact(self,event):
         vals = (self.orgName.get(),)
         cols = ''
@@ -172,15 +169,120 @@ class NewContact(tk.Frame,DBI):
             ini_section = self.ini_section,
             orgNameDD=self.orgNameDD,
             refineOrgs=self.refineOrgs)
+class NewComms(tk.Frame,DBI):
+    #ignroe me fornow
+    def __init__(self,parent,*args,**kwargs):
+        self.parent = parent
+        tk.Frame.__init__(self,parent,*args)
+        DBI.__init__(self,ini_section = kwargs['ini_section'])
+        self.cName = tk.Label(parent,textvariable=self.name)
+        self.cEmail = tk.Label(parent,textvariable=self.name)
+        self.cPhone = tk.Label(parent,textvariable=self.name)
+        pass
+class FindContact(tk.Frame,DBI):
+    def __init__(self,parent,*args,**kwargs):
+        self.parent = parent
+        tk.Frame.__init__(self,parent,*args)
+        self.name=kwargs['name']
+        self.org=kwargs['org']
+        self.email=kwargs['email']
+        self.phone=kwargs['phone']
+        self.ini_section=kwargs['ini_section']
+        DBI.__init__(self,ini_section = kwargs['ini_section'])
+        self.nameFilter = tk.Entry(parent,fg='black',bg='white',width=10)
+        self.orgFilter =tk.Entry(parent,fg='black',bg='white',width=10)
+        self.emailFilter = tk.Entry(parent,fg='black',bg='white',width=10)
+        self.phoneFilter = tk.Entry(parent,fg='black',bg='white',width=10)
+        self.nameLabel=tk.Label(parent,text='Name:')
+        self.orgLabel=tk.Label(parent,text='Organization:')
+        self.emailLabel=tk.Label(parent,text='Email:')
+        self.phoneLabel=tk.Label(parent,text='Phone:')
+        self.FilterButton=tk.Button(parent,
+            text='Filter',
+            width=15,height=2,
+            bg='blue',fg='yellow',)
+        self.FilterButton.bind('<Button-1>',self.getContacts)
+
+        self.nameFilter.grid(row=0,column=1)
+        self.nameLabel.grid(row=0,column=0)
+        self.orgFilter.grid(row=1,column=1)
+        self.orgLabel.grid(row=1,column=0)
+        self.emailFilter.grid(row=2,column=1)
+        self.emailLabel.grid(row=2,column=0)
+        self.phoneFilter.grid(row=3,column=1)
+        self.phoneLabel.grid(row=3,column=0)
+        self.FilterButton.grid(row=4,column=1)
+
+        self.contact = tk.StringVar(parent)
+        self.contactsDD = tk.OptionMenu(parent,self.contact,"Name, Organization, Email, Phone")
+        self.contactsDD.grid(row=5,column=0,columnspan=3)
+        self.NewContact=tk.Button(parent,
+            text='Add New Contact',
+            width=15,height=2,
+            bg='blue',fg='yellow',)
+        self.NewContact.bind('<Button-1>',self.newContact)
+        self.NewContact.grid(row=6,column=1)
+    def newContact(self,event):
+        pop_up = tk.Toplevel(self.parent)
+        NewContact(pop_up,
+            ini_section=self.ini_section)
+    def getContacts(self,event):
+        self.donationInfoDD['menu'].delete(0,'end')
+        cname = self.nameFilter.get()
+        oname=self.orgFilter.get()
+        cemail=self.emailFilter.get()
+        cphone=self.phoneFilter.get()
+        filtered_contactInfo = self.fetchall(sql.ContactInfo.getContact,
+                                        cname,oname,cemail,cphone)
+        for cInfo in filtered_contactInfo:
+            cinfoStr = str(cInfo[0]) + ', '+cInfo[1]+', '+str(cInfo[2])+', '+str(cInfo[3])
+            self.donationInfoDD['menu'].add_command(label=cinfoStr,
+                command=self.retrieveContact(cInfo[0],cInfo[1],cInfo[2],cInfo[3]))
+    def retrieveContact(self,name,org,email,phone):
+        self.name.set(name)
+        self.org.set(org)
+        self.email.set(email)
+        self.phone.set(phone)
+        self.parent.destroy()
+
+
 
 class Banner(tk.Frame):
     def __init__(self,parent,*args,**kwargs):
         tk.Frame.__init__(self,parent)
+        self.parent=parent
+        self.ini_section=kwargs['ini_section']
         message = \
         """
-        Enter New call logs, \n Review logs, \n or insert new contacts.
+        Select a Contact and then \n\tenter a new log or \n\tretrieve an old log.
         """
-        tk.Label(parent,text=message).pack()
+        tk.Label(parent,text=message).grid(row=0,column=0,columnspan=2)
+        self.name = tk.StringVar(parent,value='No Contact Selected.')
+        self.org = tk.StringVar(parent,value='')
+        self.email = tk.StringVar(parent,value='')
+        self.phone=tk.StringVar(parent,value='')
+        tk.Label(parent,text='Contact Name:').grid(row=1,column=0)
+        tk.Label(parent,text='Contact Org:').grid(row=2,column=0)
+        tk.Label(parent,text='Contact Phone:').grid(row=3,column=0)
+        tk.Label(parent,text='Contact Email:').grid(row=4,column=0)
+        tk.Label(parent,textvariable=self.name).grid(row=1,column=1)
+        tk.Label(parent,textvariable=self.org).grid(row=2,column=1)
+        tk.Label(parent,textvariable=self.Phone).grid(row=3,column=1)
+        tk.Label(parent,textvariable=self.Email).grid(row=4,column=1)
+        self.getContact = tk.Button(parent,
+            text='Retrieve Contact',
+            width=15,height=2,
+            bg='blue',fg='yellow',)
+        self.getContact.bind('<Button-1>',self.findContact)
+    def findContact(self,event):
+        pop_up=tk.Toplevel(self.parent)
+        FindContact(pop_up,
+            ini_section=kwargs['ini_section'],
+            name=self.name,
+            org=self.org,
+            email=self.email,
+            phone=self.phone)
+
 class commsGUI(ttk.Notebook):
     def __init__(self,parent,*args,**kwargs):
         ttk.Notebook.__init__(self,parent,*args)
@@ -190,10 +292,8 @@ class commsGUI(ttk.Notebook):
         Banner(parent)
         NewComms(self.tab1,ini_section=kwargs['ini_section'])
         ReviewComms(self.tab3,ini_section=kwargs['ini_section'])
-        NewContact(self.tab2,ini_section=kwargs['ini_section'])
         self.add(self.tab1,text="New Log")
         self.add(self.tab3,text="View Logs")
-        self.add(self.tab2,text="New Contact")
         self.pack(expand=True,fill='both')
 if __name__ == "__main__":
     root = tk.Tk()

@@ -14,6 +14,16 @@ class ContactInfo:
     INSERT INTO Contacts(%s)
     VALUES(%s);
     """
+    getContact = \
+    """
+    SELECT c.name,o.name,c.email,c.phone
+    FROM Contacts c
+    INNER JOIN Organizations o ON c.org=o.org_id
+    WHERE c.name ~* %s,
+    AND o.name ~* %s,
+    AND c.email ~* %s,
+    AND c.phone ~* %s;
+    """
 
 class DBAdmin:
     createTableCommands = (
@@ -22,18 +32,18 @@ class DBAdmin:
         org_id SERIAL PRIMARY KEY,
         name VARCHAR(255),
         address VARCHAR(255),
-        phone VARCHAR(20)
-        email VARCHAR(100),
+        phone VARCHAR(20),
+        email VARCHAR(100)
     )
     """,
     """
     CREATE TABLE Contacts (
-        contact_id SERIAL PRIMARY KEY
+        contact_id SERIAL PRIMARY KEY,
         name VARCHAR(255),
         phone VARCHAR(20),
-        email VARCHAR(20),
+        email VARCHAR(100),
         notes VARCHAR(255),
-        org INTEGER,
+        org INTEGER NOT NULL,
         FOREIGN KEY (org)
             REFERENCES organizations (org_id)
     )
@@ -42,7 +52,7 @@ class DBAdmin:
     CREATE TABLE Communications (
         communication_id SERIAL PRIMARY KEY,
         contact Integer,
-        dt datetime,
+        dt timestamp,
         notes VARCHAR(255),
         FOREIGN KEY (contact)
             references Contacts (contact_id)
@@ -53,7 +63,7 @@ class DBAdmin:
         request_id SERIAL PRIMARY KEY,
         org INTEGER,
         contact INTEGER,
-        request_date datetime,
+        request_date timestamp,
         quantity INTEGER,
         quantityDesktops Integer,
         quantityLaptops Integer,
@@ -77,7 +87,7 @@ class DBAdmin:
         quantityDesktops Integer,
         quantityLaptops Integer,
         quantityHotspots Integer,
-        Grant VARCHAR(100),
+        funder VARCHAR(100),
         FOREIGN KEY (request)
             REFERENCES Requests (request_id)
     )
@@ -91,11 +101,21 @@ class DBAdmin:
         quantityLaptops Integer,
         quantityHotspots Integer,
         complete Boolean,
-        distroEventDate datetime,
-        Grant VARCHAR(100),
+        distroEventDate timestamp,
+        funder VARCHAR(100),
         notes VARCHAR(255),
         FOREIGN KEY (request)
             REFERENCES Requests (request_id)
     )
     """
+    )
+    initializeDatabaseCommands=(
+    """
+    INSERT INTO Organizations(name)
+    VALUES('pcsforpeople'),('pcs4ppl')
+    """,
+    """
+    INSERT INTO Contacts(name,email)
+    VALUES('K. Butler','kbutler@pcsforpeople.org'),('R. Price','rprice@pcsforpeople.org')
+    """,
     )
