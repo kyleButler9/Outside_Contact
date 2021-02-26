@@ -116,6 +116,6 @@ class DBAdmin:
     """,
     """
     INSERT INTO Contacts(name,email)
-    VALUES('K. Butler','kdemo@pcsforpeople.org'),('R. P.','rdemo@pcsforpeople.org')
+    VALUES('K. Butler','kdemo@pcs4people.org'),('R. P.','rdemo@pcs4people.demo')
     """,
     )
