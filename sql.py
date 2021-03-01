@@ -149,7 +149,7 @@ class DBAdmin:
     VALUES('K. Butler','kbutler@pcs4people.org',
             (SELECT org_id from Organizations
                 WHERE name = 'pcsforpeople')),
-        ('R. P.','rprice@pcs4people.org',
+        ('R. P.','rp@pcs4people.org',
             (SELECT org_id from Organizations
                 WHERE name = 'pcsforpeople'))
     """,
