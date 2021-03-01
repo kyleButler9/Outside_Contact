@@ -11,20 +11,50 @@ class ContactInfo:
     """
     insertContact = \
     """
-    INSERT INTO Contacts(%s)
+    INSERT INTO Contacts(org,%s)
     VALUES(%s);
+    """
+    updateContact = \
+    """
+    UPDATE Contacts
+    %s
+    WHERE contact_id=%s;
     """
     getContact = \
     """
-    SELECT c.name,o.name,c.email,c.phone
+    SELECT c.name,o.name,c.email,c.phone,c.notes,c.contact_id
     FROM Contacts c
     INNER JOIN Organizations o ON c.org=o.org_id
-    WHERE c.name ~* %s,
-    AND o.name ~* %s,
-    AND c.email ~* %s,
-    AND c.phone ~* %s;
     """
-
+    getContactID = \
+    """
+    SELECT c.name,o.name,c.email,c.phone,c.notes
+    FROM Contacts c
+    INNER JOIN Organizations o ON c.org=o.org_id
+    """
+class Comms:
+    insertCommsLog=\
+    """
+    INSERT INTO Communications(contact,dt,notes)
+    VALUES(%s,%s,%s);
+    """
+    getMostRecentLog=\
+    """
+    SELECT dt,notes
+    FROM Communications
+    WHERE contact = %s
+    ORDER BY dt desc
+    LIMIT 1;
+    """
+    getNextLog=\
+    """
+    SELECT dt,notes
+    FROM Communications
+    WHERE contact = %s
+    AND dt < %s
+    ORDER BY dt desc
+    LIMIT 1;
+    """
 class DBAdmin:
     createTableCommands = (
     """
@@ -115,7 +145,32 @@ class DBAdmin:
     VALUES('pcsforpeople'),('pcs4ppl')
     """,
     """
-    INSERT INTO Contacts(name,email)
-    VALUES('K. Butler','kbutler@pcsforpeople.org'),('R. Price','rprice@pcsforpeople.org')
+    INSERT INTO Contacts(name,email,org)
+    VALUES('K. Butler','kbutler@pcs4people.org',
+            (SELECT org_id from Organizations
+                WHERE name = 'pcsforpeople')),
+        ('R. P.','rprice@pcs4people.org',
+            (SELECT org_id from Organizations
+                WHERE name = 'pcsforpeople'))
+    """,
+    )
+    dropTablesCommands =(
+    """
+    DROP TABLE Distributions;
+    """,
+    """
+    DROP TABLE Processing;
+    """,
+    """
+    DROP TABLE Requests;
+    """,
+    """
+    DROP TABLE Communications;
+    """,
+    """
+    DROP TABLE Contacts;
+    """,
+    """
+    DROP TABLE Organizations;
     """,
     )
