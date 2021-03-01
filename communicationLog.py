@@ -2,15 +2,16 @@ import tkinter as tk
 from tkinter import ttk
 from tkcalendar import Calendar
 import datetime
-
 import sql
 from config import DBI
+
 
 class NewOrg(tk.Frame,DBI):
     def __init__(self,parent,*args,**kwargs):
         self.parent = parent
         self.refineOrgs = kwargs['refineOrgs']
         self.orgNameDD = kwargs['orgNameDD']
+        self.OName = kwargs['orgName']
         tk.Frame.__init__(self,parent,*args)
         DBI.__init__(self,ini_section = kwargs['ini_section'])
         self.orgNameLabel = tk.Label(parent,text='Name:')
@@ -71,9 +72,10 @@ class NewOrg(tk.Frame,DBI):
     def updateDD(self):
         refined_orgs = self.fetchall(sql.ContactInfo.getOrgs,
                                         self.refineOrgs.get())
+        self.orgNameDD['menu'].delete(0,'end')
         for org in refined_orgs:
             self.orgNameDD['menu'].add_command(label=org[0],
-                command=tk._setit(self.orgName,org[0]))
+                command=tk._setit(self.OName,org[0]))
 
 class NewContact(tk.Frame,DBI):
     def __init__(self,parent,*args,**kwargs):
@@ -97,7 +99,7 @@ class NewContact(tk.Frame,DBI):
         else:
             orgs = []
         self.orgName = tk.StringVar(parent,value="select an Organization:")
-        self.orgNameDD = tk.OptionMenu(parent,self.orgName,"select a Organization:",*orgs)
+        self.orgNameDD = tk.OptionMenu(parent,self.orgName,self.orgName.get(),*orgs)
         self.orgNameDD.grid(row=1,column=0,columnspan=2)
 
         self.insertNewOrg = tk.Button(parent,
@@ -135,7 +137,8 @@ class NewContact(tk.Frame,DBI):
     def insertContact(self,event):
         vals = (self.orgName.get(),)
         cols = ''
-        colVals = ''
+        colVals = '(SELECT org_id from Organizations o WHERE o.name = %s),'
+        empty = True
         if self.contactName.index("end") != 0:
             vals+= (self.contactName.get(),)
             cols+='name,'
@@ -148,37 +151,65 @@ class NewContact(tk.Frame,DBI):
             vals += (self.contactEmail.get(),)
             cols+='email,'
             colVals+='%s,'
+        if self.notes.index("end") != 0:
+            vals +=(self.notes.get('1.0',tk.END),)
+            cols+='notes,'
+            colVals+='%s,'
         cols = cols[:-1]
         colVals = colVals[:-1]
-        insertOrg = sql.ContactInfo.insertOrg % (cols,colVals)
-        self.flag.set(self.insertToDB(insertOrg,*vals))
-        self.orgName.delete(0,'end')
-        self.orgAddress.delete(0,'end')
-        self.orgPhone.delete(0,'end')
-        self.orgEmail.delete(0,'end')
-        self.updateDD()
+        insertContact = sql.ContactInfo.insertContact % (cols,colVals)
+        self.flag.set(self.insertToDB(insertContact,*vals))
+        self.contactName.delete(0,'end')
+        self.contactPhone.delete(0,'end')
+        self.contactEmail.delete(0,'end')
+        self.notes.delete('1.0',tk.END)
     def refineDD(self,event):
         refined_orgs = self.fetchall(sql.ContactInfo.getOrgs,
                                         self.refineOrgs.get())
+        self.orgNameDD['menu'].delete(0,'end')
         for org in refined_orgs:
             self.orgNameDD['menu'].add_command(label=org[0],
                 command=tk._setit(self.orgName,org[0]))
     def newOrg(self,event):
         pop_up = tk.Toplevel(self.parent)
+        pop_up.title('New Organization')
         NewOrg(pop_up,
             ini_section = self.ini_section,
             orgNameDD=self.orgNameDD,
+            orgName=self.orgName,
             refineOrgs=self.refineOrgs)
-class NewComms(tk.Frame,DBI):
-    #ignroe me fornow
-    def __init__(self,parent,*args,**kwargs):
-        self.parent = parent
-        tk.Frame.__init__(self,parent,*args)
-        DBI.__init__(self,ini_section = kwargs['ini_section'])
-        self.cName = tk.Label(parent,textvariable=self.name)
-        self.cEmail = tk.Label(parent,textvariable=self.name)
-        self.cPhone = tk.Label(parent,textvariable=self.name)
-        pass
+class ReviewContact(NewContact):
+    def __init__(self,*args,**kwargs):
+        NewContact.__init__(self,*args,ini_section = kwargs['ini_section'])
+        self.notes.insert('1.0',kwargs['notes'].get())
+        self.contactName.insert(0,kwargs['name'].get())
+        self.contactEmail.insert(0,kwargs['email'].get())
+        self.contactPhone.insert(0,kwargs['phone'].get())
+        self.orgName.set(kwargs['org'].get())
+        self.id=kwargs['id']
+    def insertContact(self,event):
+        cols=' SET'
+        empty = True
+        vals = tuple()
+        if self.contactName.index("end") != 0:
+            vals+= (self.contactName.get(),)
+            cols+=' name = %s,'
+        if self.contactPhone.index("end") != 0:
+            vals += (self.contactPhone.get(),)
+            cols+=' phone = %s,'
+        if self.contactEmail.index("end") != 0:
+            vals += (self.contactEmail.get(),)
+            cols+=' email = %s,'
+        if self.notes.index("end") != 0:
+            vals +=(self.notes.get('1.0',tk.END),)
+            cols+=' notes = %s,'
+        cols = cols[:-1]
+        updateContact = sql.ContactInfo.updateContact % (cols,self.id.get())
+        self.flag.set(self.insertToDB(updateContact,*vals))
+        self.contactName.delete(0,'end')
+        self.contactPhone.delete(0,'end')
+        self.contactEmail.delete(0,'end')
+        self.notes.delete('1.0',tk.END)
 class FindContact(tk.Frame,DBI):
     def __init__(self,parent,*args,**kwargs):
         self.parent = parent
@@ -187,6 +218,8 @@ class FindContact(tk.Frame,DBI):
         self.org=kwargs['org']
         self.email=kwargs['email']
         self.phone=kwargs['phone']
+        self.id = kwargs['id']
+        self.nb = tk.StringVar(parent)
         self.ini_section=kwargs['ini_section']
         DBI.__init__(self,ini_section = kwargs['ini_section'])
         self.nameFilter = tk.Entry(parent,fg='black',bg='white',width=10)
@@ -202,7 +235,6 @@ class FindContact(tk.Frame,DBI):
             width=15,height=2,
             bg='blue',fg='yellow',)
         self.FilterButton.bind('<Button-1>',self.getContacts)
-
         self.nameFilter.grid(row=0,column=1)
         self.nameLabel.grid(row=0,column=0)
         self.orgFilter.grid(row=1,column=1)
@@ -213,45 +245,107 @@ class FindContact(tk.Frame,DBI):
         self.phoneLabel.grid(row=3,column=0)
         self.FilterButton.grid(row=4,column=1)
 
-        self.contact = tk.StringVar(parent)
-        self.contactsDD = tk.OptionMenu(parent,self.contact,"Name, Organization, Email, Phone")
+        self.contactInfoVar = tk.StringVar(parent,value="Name, Organization, Email, Phone")
+        self.contactsDD = tk.OptionMenu(parent,self.contactInfoVar,self.contactInfoVar.get())
         self.contactsDD.grid(row=5,column=0,columnspan=3)
         self.NewContact=tk.Button(parent,
             text='Add New Contact',
             width=15,height=2,
             bg='blue',fg='yellow',)
         self.NewContact.bind('<Button-1>',self.newContact)
-        self.NewContact.grid(row=6,column=1)
+        self.NewContact.grid(row=7,column=1)
+        self.passBackContact=tk.Button(parent,
+            text='Pass Back Contact',
+            width=15,height=2,
+            bg='blue',fg='yellow',)
+        self.passBackContact.bind('<Button-1>',self.retrieveContact)
+        self.passBackContact.grid(row=6,column=1)
+        self.getContactInfo=tk.Button(parent,
+            text='Update Contact',
+            width=15,height=2,
+            bg='blue',fg='yellow',)
+        self.getContactInfo.bind('<Button-1>',self.reviewContact)
+        self.getContactInfo.grid(row=6,column=0)
     def newContact(self,event):
         pop_up = tk.Toplevel(self.parent)
+        pop_up.title('New Contact')
         NewContact(pop_up,
             ini_section=self.ini_section)
     def getContacts(self,event):
-        self.donationInfoDD['menu'].delete(0,'end')
-        cname = self.nameFilter.get()
-        oname=self.orgFilter.get()
-        cemail=self.emailFilter.get()
-        cphone=self.phoneFilter.get()
-        filtered_contactInfo = self.fetchall(sql.ContactInfo.getContact,
-                                        cname,oname,cemail,cphone)
+        cname = str(self.nameFilter.get())
+        oname=str(self.orgFilter.get())
+        cemail=str(self.emailFilter.get())
+        cphone=str(self.phoneFilter.get())
+        params = tuple()
+        whereClauses =''
+        sqlStr = sql.ContactInfo.getContact
+        first = False
+        if self.nameFilter.index("end") != 0:
+            if first is True:
+                sqlStr += 'AND c.name ~* %s '
+            else:
+                sqlStr += ' WHERE c.name ~* %s '
+                first = True
+            params+= (self.nameFilter.get(),)
+        if self.orgFilter.index("end") != 0:
+            if first is True:
+                sqlStr += 'AND o.name ~* %s '
+            else:
+                sqlStr += ' WHERE o.name ~* %s '
+                first = True
+            params+= (self.orgFilter.get(),)
+        if self.emailFilter.index("end") != 0:
+            if first is True:
+                sqlStr += 'AND c.email ~* %s '
+            else:
+                sqlStr += ' WHERE c.email ~* %s '
+                first = True
+            params+= (self.emailFilter.get(),)
+        if self.phoneFilter.index("end") != 0:
+            if first is True:
+                sqlStr += 'AND c.phone ~* %s '
+            else:
+                sqlStr += ' WHERE c.phone ~* %s '
+                first = True
+            params+= (self.phoneFilter.get(),)
+        filtered_contactInfo = self.fetchall(sqlStr,*params)
+        self.contactsDD['menu'].delete(0,'end')
         for cInfo in filtered_contactInfo:
             cinfoStr = str(cInfo[0]) + ', '+cInfo[1]+', '+str(cInfo[2])+', '+str(cInfo[3])
-            self.donationInfoDD['menu'].add_command(label=cinfoStr,
-                command=self.retrieveContact(cInfo[0],cInfo[1],cInfo[2],cInfo[3]))
-    def retrieveContact(self,name,org,email,phone):
-        self.name.set(name)
-        self.org.set(org)
-        self.email.set(email)
-        self.phone.set(phone)
+            l = len(cinfoStr)
+            cinfoStr+=', '+str(cInfo[4]) + ', '+ str(cInfo[5])
+            self.contactsDD['menu'].add_command(label=cinfoStr[:l+1],
+                command=tk._setit(self.contactInfoVar,cinfoStr))
+    def updateContactInfo(self):
+        vals = self.contactInfoVar.get().split(',')
+        self.name.set(vals[0])
+        self.org.set(vals[1])
+        self.email.set(vals[2])
+        self.phone.set(vals[3])
+        self.nb.set(vals[4])
+        self.id.set(vals[5])
+    def retrieveContact(self,event):
+        self.updateContactInfo()
         self.parent.destroy()
-
-
+    def reviewContact(self,event):
+        pop_up=tk.Toplevel(self.parent)
+        pop_up.title('Update Contact')
+        self.updateContactInfo()
+        ReviewContact(pop_up,
+            ini_section=self.ini_section,
+            name=self.name,
+            org=self.org,
+            email=self.email,
+            phone=self.phone,
+            notes=self.nb,
+            id=self.id)
 
 class Banner(tk.Frame):
     def __init__(self,parent,*args,**kwargs):
         tk.Frame.__init__(self,parent)
         self.parent=parent
         self.ini_section=kwargs['ini_section']
+        self.id=kwargs['id']
         message = \
         """
         Select a Contact and then \n\tenter a new log or \n\tretrieve an old log.
@@ -267,34 +361,102 @@ class Banner(tk.Frame):
         tk.Label(parent,text='Contact Email:').grid(row=4,column=0)
         tk.Label(parent,textvariable=self.name).grid(row=1,column=1)
         tk.Label(parent,textvariable=self.org).grid(row=2,column=1)
-        tk.Label(parent,textvariable=self.Phone).grid(row=3,column=1)
-        tk.Label(parent,textvariable=self.Email).grid(row=4,column=1)
+        tk.Label(parent,textvariable=self.phone).grid(row=3,column=1)
+        tk.Label(parent,textvariable=self.email).grid(row=4,column=1)
         self.getContact = tk.Button(parent,
             text='Retrieve Contact',
             width=15,height=2,
             bg='blue',fg='yellow',)
         self.getContact.bind('<Button-1>',self.findContact)
+        self.getContact.grid(row=5,column=1)
     def findContact(self,event):
         pop_up=tk.Toplevel(self.parent)
+        pop_up.title('Retrieve Contact')
         FindContact(pop_up,
-            ini_section=kwargs['ini_section'],
+            ini_section=self.ini_section,
             name=self.name,
             org=self.org,
             email=self.email,
-            phone=self.phone)
+            phone=self.phone,
+            id=self.id)
 
+class NewComms(tk.Frame,DBI):
+    #ignroe me fornow
+    def __init__(self,parent,*args,**kwargs):
+        self.parent = parent
+        tk.Frame.__init__(self,parent,*args)
+        DBI.__init__(self,ini_section = kwargs['ini_section'])
+        self.id=kwargs['id']
+        self.notesLabel=tk.Label(parent,text='call log:')
+        self.notes = tk.Text(parent,height=4,width=25)
+        self.notes.pack()
+        self.insertLog = tk.Button(parent,
+            text='log it',
+            width=15,height=2,
+            bg='blue',fg='yellow',)
+        self.insertLog.bind('<Button-1>',self.insertit)
+        self.insertLog.pack(padx=2,pady=2)
+        self.updateOrder = tk.Button(parent,
+            text='update order assoc. with contact',
+            width=25,height=2,
+            bg='blue',fg='yellow',)
+        self.updateOrder.bind('<Button-1>',self.annoying)
+        self.updateOrder.pack(padx=2,pady=2)
+    def insertit(self,event):
+        self.insertToDB(sql.Comms.insertCommsLog,self.id.get(),
+            datetime.datetime.now(),
+            self.notes.get('1.0',tk.END))
+        self.notes.delete('1.0',tk.END)
+    def annoying(self,event):
+        pop_up=tk.Toplevel(self.parent)
+        pop_up.title('boo')
+        tk.Label(pop_up,text='turtle.turtle.')
+class ReviewComms(tk.Frame,DBI):
+    def __init__(self,parent,*args,**kwargs):
+        self.parent = parent
+        tk.Frame.__init__(self,parent,*args)
+        DBI.__init__(self,ini_section = kwargs['ini_section'])
+        self.id=kwargs['id']
+        self.dt=None
+        self.notes = tk.Text(parent,height=4,width=25)
+        self.gettheLog = tk.Button(parent,
+            text='Get Log',
+            width=15,height=2,
+            bg='blue',fg='yellow',)
+        self.gettheLog.bind('<Button-1>',self.getLog)
+        self.logDT=tk.StringVar(parent)
+        self.gettheLog.pack(padx=2,pady=2)
+        tk.Label(parent,textvariable=self.logDT).pack(padx=2,pady=2)
+        self.notes.pack(padx=2,pady=2)
+    def getLog(self,event):
+        if self.dt is None:
+            back = self.fetchone(sql.Comms.getMostRecentLog,self.id.get())
+        else:
+            back = self.fetchone(sql.Comms.getNextLog,self.id.get(),self.dt)
+        if back is not None:
+            self.dt=back[0]
+            self.logDT.set('log timestamp: '+self.dt.strftime("%m/%d/%Y %H:%M"))
+            self.notes.delete('1.0',tk.END)
+            self.notes.insert('1.0',back[1])
+        else:
+            back = self.fetchone(sql.Comms.getMostRecentLog,self.id.get())
+            self.dt=back[0]
+            self.logDT.set('log timestamp: '+self.dt.strftime("%m/%d/%Y %H:%M"))
+            self.notes.delete('1.0',tk.END)
+            self.notes.insert('1.0',back[1])
 class commsGUI(ttk.Notebook):
     def __init__(self,parent,*args,**kwargs):
         ttk.Notebook.__init__(self,parent,*args)
         self.tab1 = ttk.Frame()
         self.tab2 = ttk.Frame()
         self.tab3 = ttk.Frame()
-        Banner(parent)
-        NewComms(self.tab1,ini_section=kwargs['ini_section'])
-        ReviewComms(self.tab3,ini_section=kwargs['ini_section'])
+        self.contactID = tk.IntVar(parent)
+        Banner(parent,ini_section=kwargs['ini_section'],id=self.contactID)
+        NewComms(self.tab1,ini_section=kwargs['ini_section'],id=self.contactID)
+        ReviewComms(self.tab3,ini_section=kwargs['ini_section'],id=self.contactID)
         self.add(self.tab1,text="New Log")
         self.add(self.tab3,text="View Logs")
-        self.pack(expand=True,fill='both')
+        self.grid(columnspan=2)
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Communications Log")
